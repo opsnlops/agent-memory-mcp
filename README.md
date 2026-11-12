@@ -85,6 +85,17 @@ To release a new version, add an entry with `dch -v <version>` (or edit `debian/
 
 `.github/workflows/ci.yml` runs in a `debian:trixie` container on every push to `main` and on pull requests. It checks formatting, runs clippy, runs the full test suite against a `mongo:9` service container, builds the package with `dpkg-buildpackage`, lints it with lintian, and uploads the `.deb` as a job artifact.
 
+## Troubleshooting
+
+**Claude Code says the server needs authentication or sign-in fails.** The server has no authentication, so this almost always means the request was rejected by the Host allow-list. Claude Code reads an HTTP 403 as "auth required", tries OAuth discovery, gets 404s, and reports a sign-in error. To confirm:
+
+```bash
+curl -i -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
+  http://<host>:8787/mcp -d '{"jsonrpc":"2.0","id":1,"method":"ping"}'
+```
+
+If the response is `403 Forbidden: Host header is not allowed`, add exactly the name or IP from the URL you configured in the client to `ALLOWED_HOSTS` in `/etc/default/agent-memory-mcp`, restart the service, then reconnect from `/mcp` in Claude Code. At startup the server logs the hosts it accepts, and warns when it's listening on the network but only loopback names are allowed.
+
 ## Connecting agents
 
 Claude Code (user scope, so every project gets it):

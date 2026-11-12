@@ -1,6 +1,6 @@
 use std::{io::IsTerminal, net::SocketAddr};
 
-use agent_memory_mcp::{HttpOptions, app, store::Store};
+use agent_memory_mcp::{HttpOptions, app, host_allowlist_warning, store::Store};
 use anyhow::{Context, Result};
 use clap::Parser;
 use tracing_subscriber::EnvFilter;
@@ -43,16 +43,24 @@ async fn main() -> Result<()> {
 
     let args = Args::parse();
 
+    // Report Host allow-list problems before connecting, so they show up even
+    // when MongoDB is slow or down.
+    let http = HttpOptions {
+        allowed_hosts: args.allowed_hosts,
+        allow_any_host: args.allow_any_host,
+    };
+    match http.effective_allowed_hosts() {
+        Some(hosts) => tracing::info!("accepting Host headers: {}", hosts.join(", ")),
+        None => tracing::warn!("accepting any Host header (DNS-rebinding protection disabled)"),
+    }
+    if let Some(warning) = host_allowlist_warning(args.bind, &http) {
+        tracing::warn!("{warning}");
+    }
+
     let store = Store::connect(&args.mongodb_uri, &args.database).await?;
     tracing::info!(uri = %args.mongodb_uri, db = %args.database, "connected to MongoDB");
 
-    let (router, shutdown) = app(
-        store,
-        &HttpOptions {
-            allowed_hosts: args.allowed_hosts,
-            allow_any_host: args.allow_any_host,
-        },
-    );
+    let (router, shutdown) = app(store, &http);
 
     let listener = tokio::net::TcpListener::bind(args.bind)
         .await
