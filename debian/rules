@@ -1,0 +1,49 @@
+#!/usr/bin/make -f
+# Rust is built with cargo directly; dependencies must already be in
+# $CARGO_HOME (packaging/Dockerfile runs `cargo fetch` first), so the
+# package build itself never touches the network.
+
+include /usr/share/dpkg/pkg-info.mk
+
+# Pass Debian's hardening CFLAGS/LDFLAGS to C code built by crates (cc crate).
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+DPKG_EXPORT_BUILDFLAGS = 1
+include /usr/share/dpkg/buildflags.mk
+
+export DH_VERBOSE = 1
+export CARGO_TARGET_DIR = $(CURDIR)/debian/cargo-target
+export CARGO_NET_OFFLINE = true
+# Line tables give dh_strip something to put in the -dbgsym package and make
+# panic backtraces useful; remapping keeps build paths out of the binary.
+export CARGO_PROFILE_RELEASE_DEBUG = line-tables-only
+export RUSTFLAGS = --remap-path-prefix=$(CURDIR)=. --remap-path-prefix=$(CARGO_HOME)=/cargo
+
+PKG := agent-memory-mcp
+BIN := $(CARGO_TARGET_DIR)/release/$(PKG)
+
+%:
+	dh $@
+
+override_dh_auto_clean:
+	rm -rf $(CARGO_TARGET_DIR) debian/$(PKG).1
+
+override_dh_auto_configure:
+
+override_dh_auto_build:
+	cargo build --release --locked
+	help2man --no-info --section=8 --version-string="$(DEB_VERSION_UPSTREAM)" \
+		--name="shared long-term memory MCP server for coding agents" \
+		--output=debian/$(PKG).8 $(BIN)
+
+# Integration tests run only when MONGODB_TEST_URI is set; unit tests always run.
+override_dh_auto_test:
+ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
+	cargo test --release --locked
+endif
+
+override_dh_auto_install:
+	install -D -m 0755 $(BIN) debian/$(PKG)/usr/sbin/$(PKG)
+	install -D -m 0644 debian/$(PKG).envfile debian/$(PKG)/etc/default/$(PKG)
+
+# dwz does not understand Rust's DWARF well and adds nothing for a single binary.
+override_dh_dwz:

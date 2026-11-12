@@ -1,0 +1,10 @@
+# A trixie box with systemd as PID 1, for install-testing the package.
+#   docker build --platform linux/amd64 -f packaging/Dockerfile.systemd-test -t amm-systemd-test packaging
+#   docker run -d --privileged --cgroupns=host -v /sys/fs/cgroup:/sys/fs/cgroup:rw amm-systemd-test
+FROM debian:trixie
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends systemd systemd-sysv curl ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+STOPSIGNAL SIGRTMIN+3
+CMD ["/sbin/init"]

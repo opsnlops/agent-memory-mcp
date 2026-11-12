@@ -1,0 +1,91 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Keep in sync with RUST_VERSION in packaging/Dockerfile.
+  RUST_VERSION: "1.92.0"
+  CARGO_TERM_COLOR: always
+  RUSTUP_HOME: /opt/rustup
+  CARGO_HOME: /opt/cargo
+
+jobs:
+  build-test-package:
+    name: Build, test, and package (Debian trixie)
+    runs-on: ubuntu-latest
+    container: debian:trixie
+
+    services:
+      mongo:
+        image: mongo:9
+
+    steps:
+      - name: Install Debian build tools
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            build-essential debhelper devscripts help2man lintian \
+            ca-certificates curl git
+
+      - uses: actions/checkout@v5
+
+      - name: Install Rust ${{ env.RUST_VERSION }}
+        run: |
+          curl -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path \
+            --profile minimal --component clippy,rustfmt \
+            --default-toolchain "$RUST_VERSION"
+          echo "$CARGO_HOME/bin" >> "$GITHUB_PATH"
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Check formatting
+        run: cargo fmt --check
+
+      - name: Clippy
+        run: cargo clippy --all-targets --locked -- -D warnings
+
+      - name: Test (unit + integration against MongoDB 9)
+        env:
+          MONGODB_TEST_URI: mongodb://mongo:27017
+        run: cargo test --locked
+
+      - name: Build Debian package
+        # Tests already ran above against a real MongoDB; skip the repeat.
+        env:
+          DEB_BUILD_OPTIONS: nocheck
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          dpkg-buildpackage --build=binary --no-sign
+          mkdir -p dist
+          mv ../*.deb ../*.buildinfo ../*.changes dist/
+
+      - name: Lintian
+        run: lintian --info --fail-on error dist/*.changes
+
+      - name: Inspect package
+        run: |
+          dpkg-deb --info dist/agent-memory-mcp_*.deb
+          dpkg-deb --contents dist/agent-memory-mcp_*.deb
+
+      - name: Upload .deb
+        uses: actions/upload-artifact@v5
+        with:
+          name: agent-memory-mcp-deb-${{ github.sha }}
+          path: |
+            dist/*.deb
+            dist/*.buildinfo
+            dist/*.changes
+          if-no-files-found: error

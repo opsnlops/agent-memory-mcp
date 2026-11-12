@@ -251,3 +251,56 @@ impl Store {
             .collect())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn s(v: &[&str]) -> Vec<String> {
+        v.iter().map(|x| x.to_string()).collect()
+    }
+
+    #[test]
+    fn normalize_tags_lowercases_trims_and_dedups() {
+        assert_eq!(
+            normalize_tags(s(&["Rust", " testing ", "rust", "", "   ", "Cargo"])),
+            s(&["cargo", "rust", "testing"])
+        );
+    }
+
+    #[test]
+    fn normalize_tags_empty() {
+        assert!(normalize_tags(vec![]).is_empty());
+    }
+
+    #[test]
+    fn kind_serializes_lowercase() {
+        assert_eq!(
+            bson::to_bson(&Kind::Technique).unwrap(),
+            bson::Bson::String("technique".into())
+        );
+        assert_eq!(Kind::Memory.as_str(), "memory");
+        assert_eq!(Kind::Technique.as_str(), "technique");
+    }
+
+    #[test]
+    fn score_is_never_stored() {
+        let now = bson::DateTime::now();
+        let doc = MemoryDoc {
+            id: ObjectId::new(),
+            title: "t".into(),
+            body: "b".into(),
+            kind: Kind::Memory,
+            tags: vec![],
+            project: None,
+            author: None,
+            created_at: now,
+            updated_at: now,
+            score: Some(1.5),
+        };
+        let stored = bson::to_document(&doc).unwrap();
+        assert!(!stored.contains_key("score"));
+        assert!(!stored.contains_key("project"));
+        assert!(stored.contains_key("_id"));
+    }
+}

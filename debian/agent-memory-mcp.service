@@ -1,0 +1,45 @@
+[Unit]
+Description=Shared agent memory MCP server
+Documentation=man:agent-memory-mcp(8)
+Wants=network-online.target
+After=network-online.target mongod.service
+
+[Service]
+Type=exec
+EnvironmentFile=-/etc/default/agent-memory-mcp
+ExecStart=/usr/sbin/agent-memory-mcp
+Restart=on-failure
+RestartSec=5s
+
+# Runs as a transient unprivileged user; the service keeps no local state.
+DynamicUser=yes
+UMask=0077
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectProc=invisible
+ProcSubset=pid
+ProtectHostname=yes
+ProtectClock=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+RemoveIPC=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+SystemCallErrorNumber=EPERM
+
+[Install]
+WantedBy=multi-user.target

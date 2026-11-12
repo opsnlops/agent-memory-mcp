@@ -1,0 +1,25 @@
+Source: agent-memory-mcp
+Section: net
+Priority: optional
+Maintainer: April White <claude@sneakyrabbits.io>
+Rules-Requires-Root: no
+# A Rust toolchain >= 1.88 is also required. Trixie ships 1.85, so it is
+# provided by rustup in packaging/Dockerfile rather than listed here.
+Build-Depends:
+ debhelper-compat (= 13),
+ help2man,
+Standards-Version: 4.7.2
+Homepage: https://github.com/opsnlops/agent-memory-mcp
+
+Package: agent-memory-mcp
+Architecture: any
+Depends:
+ ${misc:Depends},
+ ${shlibs:Depends},
+Description: shared long-term memory for coding agents (MCP server)
+ An MCP server that lets coding agents such as Claude Code and Codex save
+ memories and techniques that other agent sessions can search and reuse.
+ .
+ It speaks the Model Context Protocol over Streamable HTTP and stores
+ entries in MongoDB. There is no built-in authentication; restrict access
+ at the network level.

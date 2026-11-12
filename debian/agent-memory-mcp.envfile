@@ -1,0 +1,22 @@
+# Configuration for agent-memory-mcp.service.
+# After editing: systemctl restart agent-memory-mcp
+
+# MongoDB connection string and database.
+MONGODB_URI=mongodb://127.0.0.1:27017
+MONGODB_DATABASE=agent_memory
+
+# Address and port to listen on. There is no authentication, so make sure
+# only trusted networks (e.g. your tailnet) can reach this port.
+BIND_ADDR=0.0.0.0:8787
+
+# Hostnames clients use to reach the server, comma-separated. Requests with
+# any other Host header are rejected (DNS-rebinding protection). Loopback
+# names are always allowed. Include the Tailscale MagicDNS name and/or the
+# tailnet IP, e.g.:
+#ALLOWED_HOSTS=fuzzball,fuzzball.example-tailnet.ts.net,100.64.0.10
+
+# Accept any Host header instead (not recommended).
+#ALLOW_ANY_HOST=true
+
+# Log level: error, warn, info, debug, trace.
+RUST_LOG=info

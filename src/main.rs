@@ -1,28 +1,16 @@
-mod server;
-mod store;
+use std::{io::IsTerminal, net::SocketAddr};
 
-use std::{net::SocketAddr, sync::Arc};
-
+use agent_memory_mcp::{HttpOptions, app, store::Store};
 use anyhow::{Context, Result};
-use axum::{Router, routing::get};
 use clap::Parser;
-use rmcp::transport::streamable_http_server::{
-    StreamableHttpServerConfig, StreamableHttpService, session::local::LocalSessionManager,
-};
 use tracing_subscriber::EnvFilter;
-
-use crate::{server::MemoryServer, store::Store};
 
 /// Shared memory MCP server for coding agents, backed by MongoDB.
 #[derive(Parser, Debug)]
 #[command(version, about)]
 struct Args {
     /// MongoDB connection string.
-    #[arg(
-        long,
-        env = "MONGODB_URI",
-        default_value = "mongodb://fuzzball.local:27017"
-    )]
+    #[arg(long, env = "MONGODB_URI", default_value = "mongodb://127.0.0.1:27017")]
     mongodb_uri: String,
 
     /// Database to store memories in.
@@ -45,7 +33,9 @@ struct Args {
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    // No color codes when logging to journald or a file.
     tracing_subscriber::fmt()
+        .with_ansi(std::io::stdout().is_terminal())
         .with_env_filter(
             EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")),
         )
@@ -56,39 +46,47 @@ async fn main() -> Result<()> {
     let store = Store::connect(&args.mongodb_uri, &args.database).await?;
     tracing::info!(uri = %args.mongodb_uri, db = %args.database, "connected to MongoDB");
 
-    let mut config = StreamableHttpServerConfig::default();
-    if args.allow_any_host {
-        config = config.disable_allowed_hosts();
-    } else {
-        let hosts = ["localhost", "127.0.0.1", "::1"]
-            .into_iter()
-            .map(String::from)
-            .chain(args.allowed_hosts.iter().map(|h| h.trim().to_string()))
-            .filter(|h| !h.is_empty());
-        config = config.with_allowed_hosts(hosts);
-    }
-    let shutdown = config.cancellation_token.clone();
-
-    let mcp = StreamableHttpService::new(
-        move || Ok(MemoryServer::new(store.clone())),
-        Arc::new(LocalSessionManager::default()),
-        config,
+    let (router, shutdown) = app(
+        store,
+        &HttpOptions {
+            allowed_hosts: args.allowed_hosts,
+            allow_any_host: args.allow_any_host,
+        },
     );
-
-    let app = Router::new()
-        .route("/healthz", get(|| async { "ok" }))
-        .nest_service("/mcp", mcp);
 
     let listener = tokio::net::TcpListener::bind(args.bind)
         .await
         .with_context(|| format!("binding {}", args.bind))?;
-    tracing::info!("listening on http://{}/mcp", args.bind);
+    tracing::info!("listening on http://{}/mcp", listener.local_addr()?);
 
-    axum::serve(listener, app)
+    axum::serve(listener, router)
         .with_graceful_shutdown(async move {
-            let _ = tokio::signal::ctrl_c().await;
+            shutdown_signal().await;
+            tracing::info!("shutting down");
             shutdown.cancel();
         })
         .await?;
     Ok(())
+}
+
+/// Resolve on Ctrl-C or SIGTERM (what systemd sends on stop).
+async fn shutdown_signal() {
+    let ctrl_c = async {
+        let _ = tokio::signal::ctrl_c().await;
+    };
+    #[cfg(unix)]
+    let term = async {
+        match tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()) {
+            Ok(mut s) => {
+                s.recv().await;
+            }
+            Err(_) => std::future::pending::<()>().await,
+        }
+    };
+    #[cfg(not(unix))]
+    let term = std::future::pending::<()>();
+    tokio::select! {
+        _ = ctrl_c => {},
+        _ = term => {},
+    }
 }

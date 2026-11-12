@@ -1,0 +1,10 @@
+target
+dist
+.git
+debian/cargo-target
+debian/.debhelper
+debian/agent-memory-mcp
+debian/agent-memory-mcp-dbgsym
+debian/files
+debian/*.substvars
+debian/debhelper-build-stamp

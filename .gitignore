@@ -1,1 +1,15 @@
 /target
+/dist
+/debian/cargo-target
+/debian/.debhelper
+/debian/debhelper-build-stamp
+/debian/files
+/debian/*.substvars
+/debian/*.debhelper.log
+/debian/*.postrm.debhelper
+/debian/*.postinst.debhelper
+/debian/*.prerm.debhelper
+/debian/agent-memory-mcp
+/debian/agent-memory-mcp.8
+/debian/tmp
+/debian/agent-memory-mcp-dbgsym

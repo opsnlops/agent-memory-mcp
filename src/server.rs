@@ -340,3 +340,75 @@ impl MemoryServer {
                     adding a near-duplicate."
 )]
 impl ServerHandler for MemoryServer {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use mongodb::bson;
+
+    fn doc_with_body(body: &str) -> MemoryDoc {
+        let now = bson::DateTime::now();
+        MemoryDoc {
+            id: ObjectId::new(),
+            title: "title".into(),
+            body: body.into(),
+            kind: Kind::Technique,
+            tags: vec!["rust".into()],
+            project: Some("proj".into()),
+            author: None,
+            created_at: now,
+            updated_at: now,
+            score: Some(2.0),
+        }
+    }
+
+    #[test]
+    fn short_body_is_not_truncated() {
+        let hit = SearchHit::from(doc_with_body("short body"));
+        assert_eq!(hit.snippet, "short body");
+        assert_eq!(hit.score, Some(2.0));
+    }
+
+    #[test]
+    fn long_body_is_truncated_on_char_boundary() {
+        // Multi-byte characters must not be split.
+        let body = "é".repeat(SNIPPET_CHARS + 10);
+        let hit = SearchHit::from(doc_with_body(&body));
+        assert_eq!(hit.snippet.chars().count(), SNIPPET_CHARS + 1);
+        assert!(hit.snippet.ends_with('…'));
+    }
+
+    #[test]
+    fn body_of_exactly_snippet_length_has_no_ellipsis() {
+        let body = "a".repeat(SNIPPET_CHARS);
+        assert_eq!(SearchHit::from(doc_with_body(&body)).snippet, body);
+    }
+
+    #[test]
+    fn memory_conversion_uses_hex_id_and_rfc3339() {
+        let doc = doc_with_body("b");
+        let hex = doc.id.to_hex();
+        let m = Memory::from(doc);
+        assert_eq!(m.id, hex);
+        assert!(m.created_at.ends_with('Z'), "{}", m.created_at);
+        assert_eq!(m.project.as_deref(), Some("proj"));
+    }
+
+    #[test]
+    fn parse_id_accepts_hex_with_whitespace() {
+        let id = ObjectId::new();
+        assert_eq!(parse_id(&format!("  {}\n", id.to_hex())).unwrap(), id);
+    }
+
+    #[test]
+    fn parse_id_rejects_garbage() {
+        let err = parse_id("nope").unwrap_err();
+        assert_eq!(err.code, rmcp::model::ErrorCode::INVALID_PARAMS);
+    }
+
+    #[test]
+    fn require_nonempty_rejects_whitespace() {
+        assert!(require_nonempty("title", "  \n").is_err());
+        assert!(require_nonempty("title", "x").is_ok());
+    }
+}
