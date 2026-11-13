@@ -1,18 +1,26 @@
 #!/usr/bin/env bash
-# SessionStart hook for the agent-memory plugin.
+# SessionStart hook for the agent-memory plugin, shared by Claude Code
+# (hooks/hooks.json) and Codex (hooks/codex-hooks.json).
 #
-# Prints plain text, which Claude Code adds to the session context. Never
+# Prints plain text, which both agents add to the session context. Never
 # fails the session: every probe is best-effort and the script always exits 0.
 
 set -u
 
 input=$(cat 2>/dev/null || true)
 
+# Pull a top-level string field out of the hook's stdin JSON without jq.
+json_field() {
+  printf '%s' "$input" | sed -n "s/.*\"$1\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" | head -n1
+}
+
 # "startup", "resume", "clear", "compact" or "fork".
-source_kind=$(printf '%s' "$input" | sed -n 's/.*"source"[[:space:]]*:[[:space:]]*"\([a-z]*\)".*/\1/p' | head -n1)
+source_kind=$(json_field source)
 source_kind=${source_kind:-startup}
 
-project_dir=${CLAUDE_PROJECT_DIR:-$PWD}
+# Claude Code sets CLAUDE_PROJECT_DIR; Codex passes the session cwd on stdin.
+stdin_cwd=$(json_field cwd)
+project_dir=${CLAUDE_PROJECT_DIR:-${stdin_cwd:-$PWD}}
 
 # Project key: bare repo name from the origin remote, else the git top-level
 # directory name, else the working directory name. Lowercased so every agent
@@ -28,8 +36,10 @@ else
 fi
 project_key=$(printf '%s' "$project_key" | tr '[:upper:]' '[:lower:]')
 
-# Reachability: hit /healthz next to the configured /mcp endpoint.
-server_url=${CLAUDE_PLUGIN_OPTION_SERVER_URL:-http://10.19.63.10:8787/mcp}
+# Reachability: hit /healthz next to the configured /mcp endpoint. Claude Code
+# exports the plugin option; Codex has no plugin options, so AGENT_MEMORY_URL
+# can override the default there.
+server_url=${CLAUDE_PLUGIN_OPTION_SERVER_URL:-${AGENT_MEMORY_URL:-http://10.19.63.10:8787/mcp}}
 health_url="${server_url%/mcp}/healthz"
 reachable=unknown
 if command -v curl >/dev/null 2>&1; then
@@ -64,9 +74,9 @@ case "$source_kind" in
     echo "Before starting non-trivial work:"
     echo "1. Search agent-memory for this project's state: \`search\` with project \`${project_key}\` and tags [\"project-state\"], then \`get\` the entry for its full body."
     echo "2. Search for prior art related to the task, both within the project and across all projects (omit \`project\`): techniques, gotchas and decisions."
-    echo "3. If there is no \`project-state\` entry for \`${project_key}\`, the project predates agent-memory: run the agent-memory:bootstrap skill before or alongside the user's task, and tell the user you did."
+    echo "3. If there is no \`project-state\` entry for \`${project_key}\`, the project predates agent-memory: run the agent-memory \`bootstrap\` skill before or alongside the user's task, and tell the user you did."
     echo
-    echo "Keep it current: when work changes what is true about the project, update its \`project-state\` entry; save reusable fixes and techniques as their own entries. Prefer agent-memory over local memory files. The agent-memory:guide skill has the conventions."
+    echo "Keep it current: when work changes what is true about the project, update its \`project-state\` entry; save reusable fixes and techniques as their own entries. Prefer agent-memory over your built-in or local memory (memory files, saved memories). The agent-memory \`guide\` skill has the conventions."
     ;;
 esac
 

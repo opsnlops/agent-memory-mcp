@@ -1,0 +1,28 @@
+{
+  "name": "agent-memory",
+  "version": "0.2.0",
+  "description": "Makes the shared agent-memory MCP server the agent's primary memory: check it for prior art before starting work, keep each project's state current, and bootstrap projects that predate it.",
+  "author": {
+    "name": "April White",
+    "url": "https://github.com/opsnlops/agent-memory-mcp"
+  },
+  "homepage": "https://github.com/opsnlops/agent-memory-mcp",
+  "repository": "https://github.com/opsnlops/agent-memory-mcp",
+  "license": "MIT",
+  "keywords": ["memory", "mcp", "knowledge", "context"],
+  "skills": "./skills/",
+  "mcpServers": "./codex-mcp.json",
+  "hooks": "./hooks/codex-hooks.json",
+  "interface": {
+    "displayName": "agent-memory",
+    "shortDescription": "Shared long-term memory for coding agents",
+    "longDescription": "Connects to the self-hosted agent-memory MCP server and makes it the agent's primary memory, shared with Claude Code and other Codex sessions. Checks memory for prior art before work, keeps each project's state current, and bootstraps projects that predate it.",
+    "developerName": "April White",
+    "category": "Productivity",
+    "capabilities": [],
+    "websiteURL": "https://github.com/opsnlops/agent-memory-mcp",
+    "defaultPrompt": [
+      "Check agent-memory for this project's state and prior art before starting"
+    ]
+  }
+}

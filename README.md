@@ -106,7 +106,7 @@ The `agent-memory` plugin in [`plugin/`](plugin/) connects Claude Code to the se
 - **SessionStart hook.** Gives the agent the project key for the current repo (the bare `origin` repo name, lowercased) and checks the server's `/healthz`. It tells the agent to read the project's state and search for prior art before starting work, and to bootstrap memory when a project has none yet.
 - **Skills:**
   - `agent-memory:guide`: conventions for where memories go, the single `project-state` entry per project, and titles, tags and dedup.
-  - `agent-memory:bootstrap`: seeds memory for a project that predates agent-memory, from its docs, build setup, git history and local Claude memory files.
+  - `agent-memory:bootstrap`: seeds memory for a project that predates agent-memory, from its docs, build setup, git history and the agent's local memory.
   - `agent-memory:sync`: updates the project's state and saves new techniques at the end of a piece of work.
 
 Install it from this repo's marketplace. There are two steps: adding the marketplace only registers the catalog and doesn't install anything, so the plugin won't appear among your installed plugins until you run the install. From a shell:
@@ -143,18 +143,43 @@ claude --plugin-dir ./plugin
 claude plugin validate ./plugin && claude plugin validate .
 ```
 
-### Codex
+### Codex: the same plugin
 
-Add the server to `~/.codex/config.toml`:
+The `plugin/` directory is also a Codex plugin, with the same skills and the same SessionStart hook script. Install it from this repo's marketplace. As with Claude Code, adding the marketplace doesn't install anything:
+
+```bash
+codex plugin marketplace add opsnlops/agent-memory-mcp
+```
+
+```bash
+codex plugin add agent-memory@agent-memory-mcp
+```
+
+Start a new Codex session, then run `/hooks` and **trust the agent-memory SessionStart hook**. Codex won't run plugin hooks until you approve them, and asks again whenever the hook script changes in a plugin update. Without the hook, the skills and MCP tools still work, but Codex isn't told the project key or reminded to check memory at the start of each session.
+
+Codex has no plugin options, so the server URL is fixed in [`plugin/codex-mcp.json`](plugin/codex-mcp.json) (`http://10.19.63.10:8787/mcp`). To use a different URL, change that file in a fork, or skip the plugin's server and add your own to `~/.codex/config.toml`:
 
 ```toml
 [mcp_servers.agent-memory]
-url = "http://10.19.63.10:8787/mcp"
+url = "http://my-box.tailnet-name.ts.net:8787/mcp"
 ```
 
-Codex doesn't load Claude Code plugins, so give it the same behavior in your global `AGENTS.md`:
+To update after changes are pushed, run `codex plugin marketplace upgrade agent-memory-mcp` and start a new session.
 
-> Use the agent-memory MCP server as your primary memory. The project key is the bare `origin` repo name, lowercased. Before non-trivial work, `search` for the project's entry tagged `project-state` and for prior art related to the task. If no `project-state` entry exists, create one (purpose, stack, layout, build/test/run, deployment, current status, decisions). Keep it current with `update`, and save reusable fixes as separate `technique` entries. Search before saving to avoid duplicates. Never store secrets.
+### How the plugin directory serves both agents
+
+Each agent reads only its own manifest and MCP file. Everything else is shared.
+
+| | Claude Code | Codex |
+|---|---|---|
+| Manifest | `.claude-plugin/plugin.json` | `.codex-plugin/plugin.json` |
+| MCP server | inline in the manifest, URL from the `server_url` option | `codex-mcp.json` (fixed URL) |
+| Hooks file | `hooks/hooks.json` | `hooks/codex-hooks.json` |
+| Hook script | `hooks/session-start.sh` (shared) | same |
+| Skills | `skills/` (shared) | same |
+| Marketplace | `.claude-plugin/marketplace.json` | `.agents/plugins/marketplace.json` |
+
+Don't add a `.mcp.json` to `plugin/`. Codex loads it by default, and Claude Code's `${user_config.server_url}` placeholder means nothing to Codex, so its server definition breaks. The `codex-mcp.json` name avoids that collision.
 
 ### Other MCP clients
 

@@ -1,0 +1,18 @@
+{
+  "description": "At session start, tell Codex which agent-memory project key applies here, whether the server is reachable, and to check memory before starting work.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|clear|compact|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${PLUGIN_ROOT}/hooks/session-start.sh\"",
+            "statusMessage": "Checking agent-memory",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -5,26 +5,26 @@ description: Conventions for the shared agent-memory MCP server. Use before star
 
 # agent-memory conventions
 
-agent-memory is a shared memory server used by every Claude Code and Codex session. Treat it as your **primary memory**. Anything you save there, other agents can find and act on.
+agent-memory is a shared memory server used by every Claude Code and Codex session. Treat it as your **primary memory**. Anything you save there, other agents can find and act on, including agents of a different kind.
 
-Its tools are `search`, `get`, `remember`, `update`, `forget` and `list_tags`. Depending on how the server is configured, they appear as `mcp__agent-memory__<tool>` or `mcp__plugin_agent-memory_agent-memory__<tool>`. They are the same server either way.
+Its tools are `search`, `get`, `remember`, `update`, `forget` and `list_tags`. The full tool names depend on the client: in Claude Code, `mcp__plugin_agent-memory_agent-memory__<tool>` or `mcp__agent-memory__<tool>`; in Codex, the tools of the `agent-memory` MCP server. They all reach the same server.
 
 ## Where memories go
 
 - **agent-memory first.** Project context, decisions, techniques, gotchas and user preferences all go here.
-- **Local memory files** (Claude Code's file-based memory, `MEMORY.md`): use them only when agent-memory is unreachable. Mark those notes "pending sync to agent-memory", copy them over once the server is back, then delete the local copies.
+- **Built-in or local memory:** Claude Code's file-based memory (`MEMORY.md`) or Codex's saved memories. Use it only when agent-memory is unreachable. Mark those notes "pending sync to agent-memory", copy them over once the server is back, then delete the local copies.
 - **Never store** secrets, credentials, tokens, private keys, or personal data beyond a name. agent-memory has no authentication and every agent can read it.
 - **Don't store** what the repo already records well: the code itself, git history, or anything that is obvious from reading the files. Store the non-obvious parts: why things are the way they are, how to work with the project, and what went wrong before.
 
 ## Project key
 
-Pass `project` on every project-specific entry. The key is the bare repo name from the `origin` remote, lowercased (for example `agent-memory-mcp`). Without a remote, use the git top-level directory name, then the working directory name. The SessionStart hook prints the key for the current directory. Leave `project` empty for knowledge that applies everywhere.
+Pass `project` on every project-specific entry. The key is the bare repo name from the `origin` remote, lowercased (for example `agent-memory-mcp`). Without a remote, use the git top-level directory name, then the working directory name. The plugin's SessionStart hook prints the key for the current directory. If the hook didn't run (Codex requires approving plugin hooks with `/hooks` first), work out the key yourself, for example with `git remote get-url origin`. Leave `project` empty for knowledge that applies everywhere.
 
 ## Before starting work
 
 1. `search` with `project: <key>` and `tags: ["project-state"]`, then `get` the result to read the full project state.
 2. `search` for the task itself, with free-text keywords, both with `project: <key>` and without it. Techniques from other projects often apply.
-3. If no `project-state` entry exists, the project predates agent-memory. Run the **agent-memory:bootstrap** skill.
+3. If no `project-state` entry exists, the project predates agent-memory. Run the agent-memory **bootstrap** skill.
 
 Search uses whole-word text matching with stemming: no partial words and no typo tolerance. Try two or three phrasings, and use `list_tags` to discover topic names.
 
@@ -41,7 +41,7 @@ Each project has exactly one entry tagged `project-state`, titled `Project state
 - **Decisions**: notable choices and the reasons behind them.
 - **Related entries**: titles and ids of technique or gotcha entries for this project.
 
-Update it when work changes something it says: a feature lands, a decision is made, the deploy target changes, or a bug becomes known. For a long session, use the **agent-memory:sync** skill before finishing.
+Update it when work changes something it says: a feature lands, a decision is made, the deploy target changes, or a bug becomes known. For a long session, use the agent-memory **sync** skill before finishing.
 
 ## Other entries
 
@@ -50,7 +50,7 @@ Update it when work changes something it says: a feature lands, a decision is ma
 - **Title**: a specific, searchable statement of the point, such as "MongoDB 8/9 Docker images won't start on Docker Desktop (kernel 6.19–7.0.13)". Avoid vague titles like "Docker issue".
 - **Body**: enough context that an agent with no history can act on it. Include the symptom, the cause, the fix, and the exact commands or error text.
 - **Tags**: 2–6 lowercase topic tags. Run `list_tags` first and reuse existing tags.
-- **author**: your agent name, for example `claude-code`.
+- **author**: your agent name: `claude-code` or `codex`.
 - **Search before saving.** If a matching entry exists, `update` it instead of adding a near-duplicate. If an entry turns out to be wrong, fix it with `update`, or `forget` it when it is obsolete.
 
 ## Telling the user

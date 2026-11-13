@@ -2,7 +2,7 @@
   "mcpServers": {
     "agent-memory": {
       "type": "http",
-      "url": "${user_config.server_url}"
+      "url": "http://10.19.63.10:8787/mcp"
     }
   }
 }

@@ -5,9 +5,9 @@ description: Bring this project's agent-memory entries up to date with what happ
 
 # Sync this session into agent-memory
 
-Follow the conventions in the **agent-memory:guide** skill. The project key is the one printed by the SessionStart hook.
+Follow the conventions in the agent-memory **guide** skill. The project key is the one printed by the SessionStart hook, or worked out from `git remote get-url origin`.
 
-1. **Load the current state.** `search` with `project: <key>` and `tags: ["project-state"]`, then `get` the entry. If none exists, run **agent-memory:bootstrap** instead and stop here.
+1. **Load the current state.** `search` with `project: <key>` and `tags: ["project-state"]`, then `get` the entry. If none exists, run agent-memory **bootstrap** instead and stop here.
 
 2. **Work out what changed.** Review this session: features added, decisions made (and why), commands or setup that changed, deploy changes, problems found or fixed, and what's in progress or next. `git log` and `git status` help, but the reasons usually only exist in the conversation.
 
