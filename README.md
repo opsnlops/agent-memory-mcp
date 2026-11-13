@@ -109,29 +109,27 @@ The `agent-memory` plugin in [`plugin/`](plugin/) connects Claude Code to the se
   - `agent-memory:bootstrap`: seeds memory for a project that predates agent-memory, from its docs, build setup, git history and local Claude memory files.
   - `agent-memory:sync`: updates the project's state and saves new techniques at the end of a piece of work.
 
-Install it from this repo's marketplace. In a Claude Code session:
-
-```text
-/plugin install agent-memory --marketplace opsnlops/agent-memory-mcp
-```
-
-Or from a shell:
+Install it from this repo's marketplace. There are two steps: adding the marketplace only registers the catalog and doesn't install anything, so the plugin won't appear among your installed plugins until you run the install. From a shell:
 
 ```bash
 claude plugin marketplace add opsnlops/agent-memory-mcp
 ```
 
 ```bash
-claude plugin install agent-memory@agent-memory-mcp
+claude plugin install agent-memory@agent-memory-mcp --config server_url=http://10.19.63.10:8787/mcp
 ```
 
-Then set the server URL. The install can report the `server_url` option as unset even though it has a default, so set it explicitly. Use the same value to point it at a different server, for example over Tailscale. In a session, run `/plugin configure agent-memory` and fill in **agent-memory server URL**, or from a shell:
+`--config` sets the server URL during install. Set it explicitly: the install can otherwise report the option as unset even though it has a default. Use a different URL here to point at another server, for example over Tailscale.
+
+Then restart Claude Code. A session that was open when you ran these commands won't see the plugin until it restarts or you run `/reload-plugins`. To check it worked, `claude plugin list` should show `agent-memory@agent-memory-mcp` as enabled, and `claude mcp list` should show `plugin:agent-memory:agent-memory` as connected.
+
+You can also install from inside a session with `/plugin install agent-memory --marketplace opsnlops/agent-memory-mcp`. Then set the URL with `/plugin configure agent-memory` (**agent-memory server URL**) and restart.
+
+To change the URL later from a shell:
 
 ```bash
 echo '{"server_url":"http://10.19.63.10:8787/mcp"}' | claude plugin configure agent-memory@agent-memory-mcp --values-stdin
 ```
-
-Restart Claude Code afterwards. Running `claude plugin configure agent-memory@agent-memory-mcp` with no input shows whether the option is set, and `claude mcp list` should list `plugin:agent-memory:agent-memory` as connected.
 
 If you previously added the server by hand with `claude mcp add`, Claude Code connects to only one of the two, because they share a URL. You can remove the manual entry with `claude mcp remove agent-memory -s user`. Keep it if you want to change the URL there instead of in the plugin.
 
