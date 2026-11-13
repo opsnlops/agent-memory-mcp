@@ -23,7 +23,9 @@ env:
 jobs:
   build-test-package:
     name: Build, test, and package (Debian trixie)
-    runs-on: ubuntu-latest
+    # Pinned rather than ubuntu-latest: the job runs in the debian:trixie
+    # container, so the host only matters for the container runtime.
+    runs-on: ubuntu-24.04
     container: debian:trixie
 
     services:
@@ -40,7 +42,7 @@ jobs:
             build-essential debhelper devscripts help2man lintian \
             ca-certificates curl git
 
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Install Rust ${{ env.RUST_VERSION }}
         run: |
@@ -81,7 +83,7 @@ jobs:
           dpkg-deb --contents dist/agent-memory-mcp_*.deb
 
       - name: Upload .deb
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: agent-memory-mcp-deb-${{ github.sha }}
           path: |
