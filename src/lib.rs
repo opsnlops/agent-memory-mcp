@@ -1,5 +1,6 @@
 //! Shared long-term memory for coding agents, served over MCP.
 
+pub mod edit;
 pub mod server;
 pub mod store;
 

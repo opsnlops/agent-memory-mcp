@@ -10,12 +10,13 @@ There is no authentication. Access control is left to the network (for example T
 |------|--------------|
 | `remember` | Save a new entry: `title`, `body`, plus optional `kind` (`memory` or `technique`), `tags`, `project` and `author`. |
 | `search` | Free-text search over title, tags and body, optionally filtered by `tags` (all must match), `kind` and `project`. Without a query it lists the most recent entries. Returns snippets. |
-| `get` | Fetch one entry by id, with its full body. |
-| `update` | Change selected fields of an entry. |
+| `get` | Fetch one entry by id, with its full body and a list of its Markdown headings. Pass `section` (a heading) to get just that part of a long entry. |
+| `edit` | Change part of a body without resending it: exact-text replacements (`old_text` → `new_text`, optionally `replace_all`) and/or `append`. Atomic and all-or-nothing. If another session writes first, the edits are re-applied to its version (a compare-and-swap on the body), so concurrent edits don't overwrite each other. |
+| `update` | Change the title, kind, tags or project, or replace the whole body. |
 | `forget` | Delete an entry. |
 | `list_tags` | List tags in use with their counts. |
 
-Tags are lowercased, trimmed and deduplicated. Text search uses a weighted MongoDB text index (title 10, tags 5, body 1), and the server creates its indexes on startup.
+Writes (`remember`, `edit`, `update`) return the entry's metadata and `body_chars` rather than echoing the body. Tags are lowercased, trimmed and deduplicated. Text search uses a weighted MongoDB text index (title 10, tags 5, body 1), and the server creates its indexes on startup.
 
 ## Running
 

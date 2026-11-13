@@ -1,6 +1,6 @@
 [package]
 name = "agent-memory-mcp"
-version = "0.2.1"
+version = "0.3.0"
 edition = "2024"
 license = "MIT"
 description = "Shared long-term memory for coding agents, served over MCP and backed by MongoDB"
@@ -15,7 +15,7 @@ mongodb = "3.10.1"
 rmcp = { version = "3.9.0", features = ["server", "macros", "transport-streamable-http-server"] }
 schemars = "1"
 serde = { version = "1.0.229", features = ["derive"] }
-tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal", "time"] }
 tokio-util = "0.7"
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }

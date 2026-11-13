@@ -118,7 +118,15 @@ async fn lists_all_tools() {
     names.sort();
     assert_eq!(
         names,
-        ["forget", "get", "list_tags", "remember", "search", "update"]
+        [
+            "edit",
+            "forget",
+            "get",
+            "list_tags",
+            "remember",
+            "search",
+            "update"
+        ]
     );
     h.finish().await;
 }
@@ -145,10 +153,16 @@ async fn remember_get_update_forget_roundtrip() {
     assert_eq!(saved["title"], "Use cargo nextest");
     assert_eq!(saved["kind"], "technique");
     assert_eq!(saved["tags"], json!(["rust", "testing"]));
-    assert_eq!(saved["created_at"], saved["updated_at"]);
+    assert!(
+        saved.get("body").is_none(),
+        "writes don't echo the body back"
+    );
+    assert_eq!(saved["body_chars"], 44);
 
     let got = h.ok("get", json!({ "id": id })).await;
-    assert_eq!(got, saved);
+    assert_eq!(got["body"], "cargo nextest run is faster than cargo test.");
+    assert_eq!(got["created_at"], got["updated_at"]);
+    assert_eq!(got["updated_at"], saved["updated_at"]);
 
     let updated = h
         .ok(
@@ -159,7 +173,7 @@ async fn remember_get_update_forget_roundtrip() {
     assert_eq!(updated["tags"], json!(["cargo", "rust"]));
     assert_eq!(updated["project"], "demo");
     assert_eq!(
-        updated["body"], saved["body"],
+        updated["body_chars"], saved["body_chars"],
         "untouched fields keep their value"
     );
     assert_ne!(updated["updated_at"], saved["updated_at"]);
@@ -338,5 +352,178 @@ async fn host_header_allow_list() {
         .await
         .unwrap();
     assert_eq!(health.text().await.unwrap(), "ok");
+    h.finish().await;
+}
+
+const LONG_BODY: &str = "## Purpose\nShared memory.\n\n## Current status\n- 0.2.0 deployed\n- tests pass\n\n### Open items\n- backups\n\n## Decisions\n- no auth\n";
+
+#[tokio::test]
+async fn edit_replaces_text_and_appends_without_resending_the_body() {
+    let Some(h) = Harness::start().await else {
+        return;
+    };
+    let id = h
+        .remember(json!({ "title": "State", "body": LONG_BODY }))
+        .await;
+
+    let saved = h
+        .ok(
+            "edit",
+            json!({
+                "id": id,
+                "edits": [
+                    { "old_text": "- 0.2.0 deployed", "new_text": "- 0.3.0 deployed" },
+                    { "old_text": "- backups\n", "new_text": "" }
+                ],
+                "append": "## Related entries\n- none yet"
+            }),
+        )
+        .await;
+    assert_eq!(saved["replacements"], json!([1, 1]));
+    assert!(saved.get("body").is_none());
+
+    let body = h.ok("get", json!({ "id": id })).await["body"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    assert!(body.contains("- 0.3.0 deployed"));
+    assert!(!body.contains("backups"));
+    assert!(
+        body.ends_with("- no auth\n\n## Related entries\n- none yet\n"),
+        "{body}"
+    );
+    assert_eq!(saved["body_chars"], body.chars().count());
+
+    h.finish().await;
+}
+
+#[tokio::test]
+async fn failed_edits_change_nothing_and_explain_why() {
+    let Some(h) = Harness::start().await else {
+        return;
+    };
+    let id = h
+        .remember(json!({ "title": "State", "body": LONG_BODY }))
+        .await;
+
+    let err = h
+        .call(
+            "edit",
+            json!({ "id": id, "edits": [
+                { "old_text": "Shared memory.", "new_text": "changed" },
+                { "old_text": "not in the body", "new_text": "x" }
+            ]}),
+        )
+        .await
+        .unwrap_err()
+        .to_string();
+    assert!(
+        err.contains("edits[1]") && err.contains("not found"),
+        "{err}"
+    );
+
+    let err = h
+        .call(
+            "edit",
+            json!({ "id": id, "edits": [{ "old_text": "- ", "new_text": "* " }] }),
+        )
+        .await
+        .unwrap_err()
+        .to_string();
+    assert!(err.contains("matches 4 places"), "{err}");
+
+    assert_eq!(h.ok("get", json!({ "id": id })).await["body"], LONG_BODY);
+
+    let all = h
+        .ok(
+            "edit",
+            json!({ "id": id, "edits": [{ "old_text": "- ", "new_text": "* ", "replace_all": true }] }),
+        )
+        .await;
+    assert_eq!(all["replacements"], json!([4]));
+
+    let missing = ObjectId::new().to_hex();
+    assert!(
+        h.call("edit", json!({ "id": missing, "append": "x" }))
+            .await
+            .is_err()
+    );
+    assert!(h.call("edit", json!({ "id": id })).await.is_err());
+
+    h.finish().await;
+}
+
+#[tokio::test]
+async fn concurrent_edits_all_land() {
+    let Some(h) = Harness::start().await else {
+        return;
+    };
+    let id = h
+        .remember(json!({ "title": "Log", "body": "# Log\n" }))
+        .await;
+
+    // Several sessions appending at once: with a blind read-modify-write
+    // most of these would be lost.
+    let calls = (0..8).map(|i| {
+        h.call(
+            "edit",
+            json!({ "id": id, "append": format!("- entry {i}") }),
+        )
+    });
+    for result in futures::future::join_all(calls).await {
+        result.expect("edit");
+    }
+
+    let body = h.ok("get", json!({ "id": id })).await["body"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    for i in 0..8 {
+        assert!(
+            body.contains(&format!("- entry {i}\n")),
+            "entry {i} lost: {body}"
+        );
+    }
+
+    h.finish().await;
+}
+
+#[tokio::test]
+async fn get_returns_headings_and_single_sections() {
+    let Some(h) = Harness::start().await else {
+        return;
+    };
+    let id = h
+        .remember(json!({ "title": "State", "body": LONG_BODY }))
+        .await;
+
+    let full = h.ok("get", json!({ "id": id })).await;
+    assert_eq!(
+        full["headings"],
+        json!([
+            "## Purpose",
+            "## Current status",
+            "### Open items",
+            "## Decisions"
+        ])
+    );
+    assert!(full.get("section").is_none());
+
+    let part = h
+        .ok("get", json!({ "id": id, "section": "current status" }))
+        .await;
+    assert_eq!(part["section"], "## Current status");
+    assert_eq!(
+        part["body"],
+        "## Current status\n- 0.2.0 deployed\n- tests pass\n\n### Open items\n- backups\n\n"
+    );
+
+    let err = h
+        .call("get", json!({ "id": id, "section": "nope" }))
+        .await
+        .unwrap_err()
+        .to_string();
+    assert!(err.contains("## Decisions"), "lists the headings: {err}");
+
     h.finish().await;
 }

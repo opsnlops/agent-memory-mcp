@@ -7,7 +7,15 @@ description: Conventions for the shared agent-memory MCP server. Use before star
 
 agent-memory is a shared memory server used by every Claude Code and Codex session. Treat it as your **primary memory**. Anything you save there, other agents can find and act on, including agents of a different kind.
 
-Its tools are `search`, `get`, `remember`, `update`, `forget` and `list_tags`. The full tool names depend on the client: in Claude Code, `mcp__plugin_agent-memory_agent-memory__<tool>` or `mcp__agent-memory__<tool>`; in Codex, the tools of the `agent-memory` MCP server. They all reach the same server.
+Its tools are `search`, `get`, `remember`, `edit`, `update`, `forget` and `list_tags`. The full tool names depend on the client: in Claude Code, `mcp__plugin_agent-memory_agent-memory__<tool>` or `mcp__agent-memory__<tool>`; in Codex, the tools of the `agent-memory` MCP server. They all reach the same server.
+
+## Changing an entry
+
+- **Use `edit` for any change to an existing body.** Pass `edits`, each an exact `old_text` copied from the body and its `new_text`, and/or `append` to add text at the end. Don't resend the whole body with `update`: on a long entry that costs thousands of tokens each way, and it overwrites whatever another session wrote in the meantime. `edit` is atomic and re-applies your edits if someone else wrote first.
+- `old_text` must match exactly once, including whitespace and line breaks. Quote a whole line or two for uniqueness. If it fails, the error says which edit and why, and nothing is saved.
+- **Read only what you need.** `get` lists the body's `headings`, and `get` with `section: "<heading>"` returns one section of a long entry.
+- Use `update` for the title, tags, kind or project, or to replace a short body wholesale.
+- Writes return the entry's metadata and `body_chars`, not the body. `get` it if you need to check the result.
 
 ## Where memories go
 
@@ -30,7 +38,7 @@ Search uses whole-word text matching with stemming: no partial words and no typo
 
 ## The project-state entry
 
-Each project has exactly one entry tagged `project-state`, titled `Project state: <key>`, with kind `memory`. It is the starting point for any agent arriving at the project. Keep it current with `update`, never by adding a second one. Body sections, all in Markdown:
+Each project has exactly one entry tagged `project-state`, titled `Project state: <key>`, with kind `memory`. It is the starting point for any agent arriving at the project. Keep it current with `edit`, never by adding a second one. Body sections, all in Markdown:
 
 - **Purpose**: what the project is and who uses it.
 - **Stack**: languages, frameworks, key dependencies and their versions where it matters.
@@ -51,7 +59,7 @@ Update it when work changes something it says: a feature lands, a decision is ma
 - **Body**: enough context that an agent with no history can act on it. Include the symptom, the cause, the fix, and the exact commands or error text.
 - **Tags**: 2–6 lowercase topic tags. Run `list_tags` first and reuse existing tags.
 - **author**: your agent name: `claude-code` or `codex`.
-- **Search before saving.** If a matching entry exists, `update` it instead of adding a near-duplicate. If an entry turns out to be wrong, fix it with `update`, or `forget` it when it is obsolete.
+- **Search before saving.** If a matching entry exists, `edit` it instead of adding a near-duplicate. If an entry turns out to be wrong, fix it with `edit`, or `forget` it when it is obsolete.
 
 ## Telling the user
 

@@ -29,7 +29,7 @@ Keep it to a quick survey. Skim, then write; don't read the whole codebase.
 ## 3. Write the entries
 
 1. **One `project-state` entry**: title `Project state: <key>`, kind `memory`, tags `["project-state", ...2-4 topic tags]`, `project: <key>`, `author` set. Use the body sections from the guide skill. Mark anything you inferred rather than confirmed as "(unverified)".
-2. **Separate entries** for non-obvious knowledge that stands on its own: setup gotchas, workarounds, debugging techniques and decisions with their reasons. Use kind `technique` or `memory`, tagged, with `project: <key>`, or no project if it applies everywhere. Search first and `update` any match.
+2. **Separate entries** for non-obvious knowledge that stands on its own: setup gotchas, workarounds, debugging techniques and decisions with their reasons. Use kind `technique` or `memory`, tagged, with `project: <key>`, or no project if it applies everywhere. Search first and `edit` any match.
 3. **Local memory**: copy anything still useful from the agent's local or built-in memory for this project into agent-memory. Leave the local copies alone unless the user asks you to remove them.
 4. Go back and list the new entries' titles and ids in the project-state entry's **Related entries** section.
 

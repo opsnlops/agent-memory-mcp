@@ -184,6 +184,25 @@ impl Store {
             .await?)
     }
 
+    /// Set the body only if it still equals `expected`, so an edit computed
+    /// from one version can't overwrite a concurrent write. Returns `None` if
+    /// the entry is gone or its body changed in the meantime.
+    pub async fn replace_body_if_unchanged(
+        &self,
+        id: ObjectId,
+        expected: &str,
+        body: String,
+    ) -> Result<Option<MemoryDoc>> {
+        Ok(self
+            .memories
+            .find_one_and_update(
+                doc! { "_id": id, "body": expected },
+                doc! { "$set": { "body": body, "updated_at": bson::DateTime::now() } },
+            )
+            .return_document(ReturnDocument::After)
+            .await?)
+    }
+
     pub async fn delete(&self, id: ObjectId) -> Result<bool> {
         Ok(self
             .memories

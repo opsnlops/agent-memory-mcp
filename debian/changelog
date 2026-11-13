@@ -1,3 +1,14 @@
+agent-memory-mcp (0.3.0) trixie; urgency=medium
+
+  * New edit tool: change part of an entry with exact-text replacements
+    and appends instead of resending the whole body; atomic, and
+    concurrent edits re-apply rather than overwrite.
+  * get takes a section (Markdown heading) and lists the body headings.
+  * remember, edit and update return metadata and body_chars instead of
+    echoing the body.
+
+ -- April White <claude@sneakyrabbits.io>  Fri, 13 Nov 2026 07:02:38 +0000
+
 agent-memory-mcp (0.2.1) trixie; urgency=medium
 
   * Man page now covers configuration, environment, files and examples
