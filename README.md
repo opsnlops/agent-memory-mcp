@@ -199,7 +199,7 @@ codex plugin marketplace add opsnlops/agent-memory-mcp
 codex plugin add agent-memory@agent-memory-mcp
 ```
 
-Start a new Codex session, then run `/hooks` and **trust the agent-memory SessionStart hook**. Codex won't run plugin hooks until you approve them, and asks again whenever the hook script changes in a plugin update. Without the hook, the skills and MCP tools still work, but Codex isn't told the project key or reminded to check memory at the start of each session.
+Start a new Codex session, then run `/hooks` and **trust the agent-memory SessionStart hook**. Codex won't run plugin hooks until you approve them. **Expect to trust it again after every plugin update**, even when the hook files are unchanged: Codex's stored trust covers more than the hook script, and the 0.2.0 → 0.3.0 update reset it with identical hook files. An untrusted hook doesn't prompt; new sessions just show `hook: SessionStart Failed`. Without the hook, the skills and MCP tools still work, but Codex isn't told the project key or reminded to check memory at the start of each session.
 
 Codex has no plugin options, so the server URL is fixed in [`plugin/codex-mcp.json`](plugin/codex-mcp.json) (`http://10.19.63.10:8787/mcp`). To use a different URL, change that file in a fork, or skip the plugin's server and add your own to `~/.codex/config.toml`:
 
@@ -208,7 +208,7 @@ Codex has no plugin options, so the server URL is fixed in [`plugin/codex-mcp.js
 url = "http://my-box.tailnet-name.ts.net:8787/mcp"
 ```
 
-To update after changes are pushed, run `codex plugin marketplace upgrade agent-memory-mcp` and start a new session.
+To update after changes are pushed, run `codex plugin marketplace upgrade agent-memory-mcp`, start a new session, and re-trust the hook in `/hooks`.
 
 ### How the plugin directory serves both agents
 
