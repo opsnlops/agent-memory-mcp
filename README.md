@@ -125,7 +125,13 @@ claude plugin marketplace add opsnlops/agent-memory-mcp
 claude plugin install agent-memory@agent-memory-mcp
 ```
 
-To point it at a different server (for example over Tailscale), run `/plugin configure agent-memory` in a session, or `claude plugin configure agent-memory@agent-memory-mcp` from a shell, and set **agent-memory server URL**. Restart Claude Code afterwards.
+Then set the server URL. The install can report the `server_url` option as unset even though it has a default, so set it explicitly. Use the same value to point it at a different server, for example over Tailscale. In a session, run `/plugin configure agent-memory` and fill in **agent-memory server URL**, or from a shell:
+
+```bash
+echo '{"server_url":"http://10.19.63.10:8787/mcp"}' | claude plugin configure agent-memory@agent-memory-mcp --values-stdin
+```
+
+Restart Claude Code afterwards. Running `claude plugin configure agent-memory@agent-memory-mcp` with no input shows whether the option is set, and `claude mcp list` should list `plugin:agent-memory:agent-memory` as connected.
 
 If you previously added the server by hand with `claude mcp add`, Claude Code connects to only one of the two, because they share a URL. You can remove the manual entry with `claude mcp remove agent-memory -s user`. Keep it if you want to change the URL there instead of in the plugin.
 
