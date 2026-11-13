@@ -157,6 +157,18 @@ Then restart Claude Code. A session that was open when you ran these commands wo
 
 You can also install from inside a session with `/plugin install agent-memory --marketplace opsnlops/agent-memory-mcp`. Then set the URL with `/plugin configure agent-memory` (**agent-memory server URL**) and restart.
 
+To update after changes are pushed, refresh the marketplace first. Without that, the update finds nothing new:
+
+```bash
+claude plugin marketplace update agent-memory-mcp
+```
+
+```bash
+claude plugin update agent-memory@agent-memory-mcp
+```
+
+Then restart Claude Code. The `server_url` setting is kept. New MCP tools appear as soon as the server is upgraded and a session restarts, even before the plugin is updated, but the skills only change with the plugin.
+
 To change the URL later from a shell:
 
 ```bash
