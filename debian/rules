@@ -25,9 +25,12 @@ BIN := $(CARGO_TARGET_DIR)/release/$(PKG)
 	dh $@
 
 override_dh_auto_clean:
-	rm -rf $(CARGO_TARGET_DIR) debian/$(PKG).1
+	rm -rf $(CARGO_TARGET_DIR) debian/$(PKG).8
 
+# debian/changelog's version is what apt deploys; refuse to build if
+# Cargo.toml or the plugin manifests disagree with it.
 override_dh_auto_configure:
+	scripts/check-versions.sh
 
 override_dh_auto_build:
 	cargo build --release --locked

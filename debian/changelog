@@ -1,3 +1,14 @@
+agent-memory-mcp (0.2.0) trixie; urgency=medium
+
+  * Log the accepted Host names at startup, and warn when the Host
+    allow-list would reject remote clients (they get HTTP 403, which MCP
+    clients report as a sign-in failure).
+  * Ship the agent-memory plugin for Claude Code and Codex (plugin/,
+    versioned to match).
+  * CI: Node 24 actions, pinned ubuntu-24.04 runner.
+
+ -- April White <claude@sneakyrabbits.io>  Thu, 12 Nov 2026 19:20:50 -0800
+
 agent-memory-mcp (0.1.0) trixie; urgency=medium
 
   * Initial release.

@@ -44,6 +44,9 @@ jobs:
 
       - uses: actions/checkout@v7
 
+      - name: Check versions match debian/changelog
+        run: scripts/check-versions.sh
+
       - name: Install Rust ${{ env.RUST_VERSION }}
         run: |
           curl -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path \

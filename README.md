@@ -79,7 +79,28 @@ sudo systemctl restart agent-memory-mcp
 journalctl -u agent-memory-mcp -f
 ```
 
-To release a new version, add an entry with `dch -v <version>` (or edit `debian/changelog`) and bump `version` in `Cargo.toml` to match.
+### Versioning
+
+`debian/changelog` is the source of truth for the version, because its version is what apt deploys. Everything else must match it:
+
+| File | Field |
+|------|-------|
+| `debian/changelog` | top entry, e.g. `agent-memory-mcp (0.2.0)` |
+| `Cargo.toml` | `version` (this is also what `agent-memory-mcp --version` reports) |
+| `plugin/.claude-plugin/plugin.json` | `version` |
+| `plugin/.codex-plugin/plugin.json` | `version` |
+
+`scripts/check-versions.sh` compares them. `debian/rules` runs it before building, and CI runs it as an early step, so a package with mismatched versions can't be built. To release:
+
+```bash
+dch -v 0.3.0 "What changed."
+```
+
+Then set the same version in the other three files, run `cargo build` to refresh `Cargo.lock`, and check:
+
+```bash
+scripts/check-versions.sh
+```
 
 ## CI
 
