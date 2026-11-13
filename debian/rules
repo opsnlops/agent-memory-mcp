@@ -32,11 +32,16 @@ override_dh_auto_clean:
 override_dh_auto_configure:
 	scripts/check-versions.sh
 
+# Options come from --help so they can't drift from the binary; the
+# configuration, environment, files and examples sections are hand-written in
+# debian/$(PKG).h2m. check-manpage.sh fails the build if either half is lost.
 override_dh_auto_build:
 	cargo build --release --locked
 	help2man --no-info --section=8 --version-string="$(DEB_VERSION_UPSTREAM)" \
 		--name="shared long-term memory MCP server for coding agents" \
+		--include=debian/$(PKG).h2m \
 		--output=debian/$(PKG).8 $(BIN)
+	scripts/check-manpage.sh $(BIN) debian/$(PKG).8
 
 # Integration tests run only when MONGODB_TEST_URI is set; unit tests always run.
 override_dh_auto_test:
@@ -47,6 +52,13 @@ endif
 override_dh_auto_install:
 	install -D -m 0755 $(BIN) debian/$(PKG)/usr/sbin/$(PKG)
 	install -D -m 0644 debian/$(PKG).envfile debian/$(PKG)/etc/default/$(PKG)
+
+# /etc/default/$(PKG) is the EnvironmentFile, and a MongoDB URI can carry
+# credentials, so keep it root-only. systemd reads it before dropping to the
+# DynamicUser, so the service still sees it.
+override_dh_fixperms:
+	dh_fixperms
+	chmod 0600 debian/$(PKG)/etc/default/$(PKG)
 
 # dwz does not understand Rust's DWARF well and adds nothing for a single binary.
 override_dh_dwz:

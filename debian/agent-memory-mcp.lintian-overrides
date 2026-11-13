@@ -1,0 +1,4 @@
+# The EnvironmentFile may hold a MongoDB URI with credentials; fleet policy
+# keeps secrets in /etc/default/<package> at mode 0600. systemd reads it as
+# root before dropping to the DynamicUser.
+agent-memory-mcp: non-standard-file-perm 0600 != 0644 [etc/default/agent-memory-mcp]

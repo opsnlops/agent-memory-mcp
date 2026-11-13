@@ -1,4 +1,5 @@
-# Configuration for agent-memory-mcp.service.
+# Configuration for agent-memory-mcp.service; see agent-memory-mcp(8).
+# Root-only (0600) because MONGODB_URI may contain credentials.
 # After editing: systemctl restart agent-memory-mcp
 
 # MongoDB connection string and database.

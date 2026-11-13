@@ -1,3 +1,12 @@
+agent-memory-mcp (0.2.1) trixie; urgency=medium
+
+  * Man page now covers configuration, environment, files and examples
+    (help2man --include), checked at build time.
+  * Install /etc/default/agent-memory-mcp as 0600, since MONGODB_URI may
+    carry credentials.
+
+ -- April White <claude@sneakyrabbits.io>  Fri, 13 Nov 2026 06:08:34 +0000
+
 agent-memory-mcp (0.2.0) trixie; urgency=medium
 
   * Log the accepted Host names at startup, and warn when the Host

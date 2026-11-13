@@ -1,0 +1,133 @@
+Spliced into the help2man-generated manual page by debian/rules.
+help2man generates OPTIONS from --help; everything about configuring the
+installed service lives here, so the options can never drift from the binary.
+
+[DESCRIPTION]
+.B agent-memory-mcp
+is a shared long-term memory for coding agents. Claude Code, Codex and any
+other Model Context Protocol (MCP) client can save memories and techniques,
+and every other agent session can search and reuse them. The server speaks
+MCP over Streamable HTTP at
+.I /mcp
+and stores entries in MongoDB.
+.PP
+There is no authentication. Restrict access at the network level, for
+example with a firewall or Tailscale.
+.PP
+Every option can also be set with the environment variable shown next to it.
+A command-line option overrides the environment.
+
+[CONFIGURATION]
+The packaged systemd unit,
+.BR agent-memory-mcp.service ,
+reads its settings from
+.IR /etc/default/agent-memory-mcp ,
+one
+.I VARIABLE=value
+per line. After editing it, run
+.B systemctl restart agent-memory-mcp
+and check the log with
+.BR "journalctl -u agent-memory-mcp" .
+.PP
+At startup the server logs the Host names it accepts. Requests whose
+.B Host
+header is not on that list get HTTP 403 (DNS-rebinding protection), which MCP
+clients usually report as a sign-in failure. Add every name and address
+clients use in their server URL to
+.BR ALLOWED_HOSTS .
+Loopback names are always accepted.
+.PP
+The service runs as a transient
+.B DynamicUser
+in a locked-down sandbox and keeps no local state. All data lives in MongoDB,
+in the database named by
+.BR MONGODB_DATABASE ;
+back that database up with
+.BR mongodump (1).
+.PP
+To change the unit itself, use a drop-in rather than editing the packaged
+file:
+.B systemctl edit agent-memory-mcp
+writes one to
+.IR /etc/systemd/system/agent-memory-mcp.service.d/ .
+
+[ENVIRONMENT]
+.TP
+.B MONGODB_URI
+MongoDB connection string. Default
+.IR mongodb://127.0.0.1:27017 .
+.TP
+.B MONGODB_DATABASE
+Database to store memories in. Default
+.IR agent_memory .
+.TP
+.B BIND_ADDR
+Address and port to listen on. Default
+.IR 0.0.0.0:8787 .
+.TP
+.B ALLOWED_HOSTS
+Comma-separated extra Host names to accept, such as the machine's short
+name, its Tailscale MagicDNS name and its tailnet IP.
+.TP
+.B ALLOW_ANY_HOST
+Set to
+.I true
+to accept any Host header. Not recommended.
+.TP
+.B RUST_LOG
+Log level or filter:
+.IR error ,
+.IR warn ,
+.IR info
+(the packaged default),
+.I debug
+or
+.IR trace .
+
+[FILES]
+.TP
+.I /etc/default/agent-memory-mcp
+Service configuration (a conffile; local edits survive upgrades). Mode 0600,
+because a MongoDB connection string may carry credentials.
+.TP
+.I /usr/lib/systemd/system/agent-memory-mcp.service
+The packaged systemd unit. Override it with a drop-in in
+.IR /etc/systemd/system/agent-memory-mcp.service.d/ .
+.TP
+.I /usr/sbin/agent-memory-mcp
+The server.
+
+[EXAMPLES]
+Accept clients that connect by short name, MagicDNS name or tailnet IP, in
+.IR /etc/default/agent-memory-mcp :
+.PP
+.RS
+.nf
+ALLOWED_HOSTS=fuzzball,fuzzball.example-tailnet.ts.net,100.64.0.10
+.fi
+.RE
+.PP
+Run by hand against a remote MongoDB, listening only on loopback:
+.PP
+.RS
+.nf
+agent-memory-mcp --mongodb-uri mongodb://db.example:27017 --bind 127.0.0.1:8787
+.fi
+.RE
+.PP
+Check that the server is up:
+.PP
+.RS
+.nf
+curl http://localhost:8787/healthz
+.fi
+.RE
+
+[SEE ALSO]
+.BR systemd.exec (5),
+.BR systemctl (1),
+.BR journalctl (1),
+.BR mongodump (1)
+.PP
+Project home and agent plugin setup:
+.I https://github.com/opsnlops/agent-memory-mcp

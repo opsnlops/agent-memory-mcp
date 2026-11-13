@@ -1,6 +1,6 @@
 [package]
 name = "agent-memory-mcp"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2024"
 license = "MIT"
 description = "Shared long-term memory for coding agents, served over MCP and backed by MongoDB"

@@ -65,15 +65,25 @@ This produces `dist/agent-memory-mcp_<version>_amd64.deb` (plus a `-dbgsym` pack
 |------|------|
 | `/usr/sbin/agent-memory-mcp` | the server |
 | `/usr/lib/systemd/system/agent-memory-mcp.service` | systemd unit, enabled and started on install |
-| `/etc/default/agent-memory-mcp` | configuration (a conffile, so your edits survive upgrades) |
-| `agent-memory-mcp(8)` | man page |
+| `/etc/default/agent-memory-mcp` | configuration (a conffile, so your edits survive upgrades; mode 0600 because `MONGODB_URI` can carry credentials) |
+| `agent-memory-mcp(8)` | man page: every option, plus configuration, environment, files and examples |
 
-The service runs as a transient `DynamicUser` with a locked-down sandbox. It keeps no local state.
+The service runs as a transient `DynamicUser` with a locked-down sandbox. It keeps no local state. Upgrades restart it.
 
-To deploy on fuzzball:
+The man page's options are generated from `--help` with help2man. The configuration half is hand-written in `debian/agent-memory-mcp.h2m`. `scripts/check-manpage.sh` fails the build if a section goes missing or an option isn't mentioned.
+
+### Deploying
+
+Packages go out through the local Debian repo on fuzzball, like the rest of the fleet:
+
+1. Bump the version (see [Versioning](#versioning)). apt won't see a new package otherwise.
+2. Push, wait for CI to pass, and download the `agent-memory-mcp-deb-<sha>` artifact.
+3. Copy `agent-memory-mcp_<version>_amd64.deb` into the amd64 suite under `/mnt/creatures/debs` on fuzzball, then run `/mnt/creatures/debs/update_repo.sh` to regenerate `Packages.gz`.
+4. On the host: `sudo apt update && sudo apt upgrade`.
+
+On a first install, set the allowed hosts and restart:
 
 ```bash
-sudo apt install ./agent-memory-mcp_0.1.0_amd64.deb
 sudoedit /etc/default/agent-memory-mcp   # set ALLOWED_HOSTS to the tailnet name(s)
 sudo systemctl restart agent-memory-mcp
 journalctl -u agent-memory-mcp -f

@@ -1,6 +1,6 @@
 {
   "name": "agent-memory",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Makes the shared agent-memory MCP server the agent's primary memory: check it for prior art before starting work, keep each project's state current, and bootstrap projects that predate it.",
   "author": {
     "name": "April White",
