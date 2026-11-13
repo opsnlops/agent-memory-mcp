@@ -1,0 +1,18 @@
+{
+  "description": "At session start, tell the agent which agent-memory project key applies here, whether the server is reachable, and to check memory before starting work.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|clear|compact|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh"],
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

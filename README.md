@@ -98,22 +98,63 @@ If the response is `403 Forbidden: Host header is not allowed`, add exactly the 
 
 ## Connecting agents
 
-Claude Code (user scope, so every project gets it):
+### Claude Code: the plugin (recommended)
 
-```bash
-claude mcp add --transport http --scope user agent-memory http://my-box.tailnet-name.ts.net:8787/mcp
+The `agent-memory` plugin in [`plugin/`](plugin/) connects Claude Code to the server and makes it the agent's primary memory:
+
+- **MCP connection.** The plugin bundles the server config. The URL is a plugin option and defaults to `http://10.19.63.10:8787/mcp`.
+- **SessionStart hook.** Gives the agent the project key for the current repo (the bare `origin` repo name, lowercased) and checks the server's `/healthz`. It tells the agent to read the project's state and search for prior art before starting work, and to bootstrap memory when a project has none yet.
+- **Skills:**
+  - `agent-memory:guide`: conventions for where memories go, the single `project-state` entry per project, and titles, tags and dedup.
+  - `agent-memory:bootstrap`: seeds memory for a project that predates agent-memory, from its docs, build setup, git history and local Claude memory files.
+  - `agent-memory:sync`: updates the project's state and saves new techniques at the end of a piece of work.
+
+Install it from this repo's marketplace. In a Claude Code session:
+
+```text
+/plugin install agent-memory --marketplace opsnlops/agent-memory-mcp
 ```
 
-Codex (`~/.codex/config.toml`):
+Or from a shell:
+
+```bash
+claude plugin marketplace add opsnlops/agent-memory-mcp
+```
+
+```bash
+claude plugin install agent-memory@agent-memory-mcp
+```
+
+To point it at a different server (for example over Tailscale), run `/plugin configure agent-memory` in a session, or `claude plugin configure agent-memory@agent-memory-mcp` from a shell, and set **agent-memory server URL**. Restart Claude Code afterwards.
+
+If you previously added the server by hand with `claude mcp add`, Claude Code connects to only one of the two, because they share a URL. You can remove the manual entry with `claude mcp remove agent-memory -s user`. Keep it if you want to change the URL there instead of in the plugin.
+
+To work on the plugin, load it from the checkout instead of the installed copy, and validate it:
+
+```bash
+claude --plugin-dir ./plugin
+```
+
+```bash
+claude plugin validate ./plugin && claude plugin validate .
+```
+
+### Codex
+
+Add the server to `~/.codex/config.toml`:
 
 ```toml
 [mcp_servers.agent-memory]
-url = "http://my-box.tailnet-name.ts.net:8787/mcp"
+url = "http://10.19.63.10:8787/mcp"
 ```
 
-To get agents using it without being asked, add a line like this to your global `CLAUDE.md` / `AGENTS.md`:
+Codex doesn't load Claude Code plugins, so give it the same behavior in your global `AGENTS.md`:
 
-> Before non-trivial work, search the agent-memory MCP for relevant memories and techniques. When you learn something a future session would benefit from, `remember` it with a clear title and tags.
+> Use the agent-memory MCP server as your primary memory. The project key is the bare `origin` repo name, lowercased. Before non-trivial work, `search` for the project's entry tagged `project-state` and for prior art related to the task. If no `project-state` entry exists, create one (purpose, stack, layout, build/test/run, deployment, current status, decisions). Keep it current with `update`, and save reusable fixes as separate `technique` entries. Search before saving to avoid duplicates. Never store secrets.
+
+### Other MCP clients
+
+Any Streamable HTTP MCP client can use `http://<host>:8787/mcp`, as long as `<host>` is in the server's `ALLOWED_HOSTS`.
 
 ## License
 

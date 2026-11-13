@@ -1,0 +1,16 @@
+{
+  "name": "agent-memory-mcp",
+  "owner": {
+    "name": "April White"
+  },
+  "metadata": {
+    "description": "Plugins for the agent-memory shared memory MCP server."
+  },
+  "plugins": [
+    {
+      "name": "agent-memory",
+      "source": "./plugin",
+      "description": "Use the shared agent-memory MCP server as the agent's primary memory."
+    }
+  ]
+}
