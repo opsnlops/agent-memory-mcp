@@ -84,6 +84,24 @@ pub struct TagCount {
     pub count: i64,
 }
 
+/// Per-project counts for the web browser's front page.
+#[derive(Debug, Clone)]
+pub struct ProjectSummary {
+    /// `None` groups entries saved without a project.
+    pub project: Option<String>,
+    pub count: i64,
+    pub techniques: i64,
+    pub last_updated: bson::DateTime,
+}
+
+/// An aggregation count, which MongoDB returns as int32 or int64.
+fn number(d: &Document, key: &str) -> Option<i64> {
+    d.get_i32(key)
+        .map(i64::from)
+        .or_else(|_| d.get_i64(key))
+        .ok()
+}
+
 #[derive(Clone)]
 pub struct Store {
     memories: Collection<MemoryDoc>,
@@ -237,6 +255,52 @@ impl Store {
             find.sort(doc! { "updated_at": -1 })
         };
         Ok(find.await?.try_collect().await?)
+    }
+
+    /// One row per project (entries without a project grouped under `None`),
+    /// with entry counts and the latest update, most recently active first.
+    pub async fn project_summaries(&self) -> Result<Vec<ProjectSummary>> {
+        let pipeline = [
+            doc! { "$group": {
+                "_id": { "$ifNull": ["$project", null] },
+                "count": { "$sum": 1 },
+                "techniques": { "$sum": { "$cond": [{ "$eq": ["$kind", "technique"] }, 1, 0] } },
+                "last_updated": { "$max": "$updated_at" },
+            } },
+            doc! { "$sort": { "last_updated": -1 } },
+        ];
+        let docs: Vec<Document> = self
+            .memories
+            .aggregate(pipeline)
+            .await?
+            .try_collect()
+            .await?;
+        Ok(docs
+            .into_iter()
+            .filter_map(|d| {
+                Some(ProjectSummary {
+                    project: d.get_str("_id").ok().map(String::from),
+                    count: number(&d, "count")?,
+                    techniques: number(&d, "techniques").unwrap_or(0),
+                    last_updated: *d.get_datetime("last_updated").ok()?,
+                })
+            })
+            .collect())
+    }
+
+    /// Every entry in a project (`None`: entries with no project), newest first.
+    pub async fn list_project(&self, project: Option<&str>) -> Result<Vec<MemoryDoc>> {
+        let filter = match project {
+            Some(p) => doc! { "project": p },
+            None => doc! { "project": null },
+        };
+        Ok(self
+            .memories
+            .find(filter)
+            .sort(doc! { "updated_at": -1 })
+            .await?
+            .try_collect()
+            .await?)
     }
 
     pub async fn tag_counts(&self, project: Option<String>) -> Result<Vec<TagCount>> {

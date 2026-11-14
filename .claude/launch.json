@@ -1,0 +1,16 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "web-preview",
+      "runtimeExecutable": "cargo",
+      "runtimeArgs": [
+        "run", "--quiet", "--",
+        "--mongodb-uri", "mongodb://127.0.0.1:27018",
+        "--database", "amm_preview",
+        "--bind", "127.0.0.1:8788"
+      ],
+      "port": 8788
+    }
+  ]
+}

@@ -18,6 +18,17 @@ There is no authentication. Access control is left to the network (for example T
 
 Writes (`remember`, `edit`, `update`) return the entry's metadata and `body_chars` rather than echoing the body. Tags are lowercased, trimmed and deduplicated. Text search uses a weighted MongoDB text index (title 10, tags 5, body 1), and the server creates its indexes on startup.
 
+## Web browser
+
+The server also serves a read-only browser for people at `http://<host>:8787/`:
+
+- **`/`** lists the projects, with entry counts and when each was last updated, plus the most recently updated entries.
+- **`/p/<project>`** lists a project's entries, with its `project-state` entry pinned at the top as "Start here", then techniques, then memories. **`/general`** holds entries saved without a project.
+- **`/m/<id>`** shows one entry, rendered from Markdown for reading, with a table of contents for long entries. Entry ids written in inline code (`` `6af6…` ``) link to that entry.
+- **`/search?q=`** runs the same text search the agents use.
+
+There's nothing to configure. It uses the same Host allow-list as `/mcp`, so a name that works for agents also works in a browser. Pages are rendered on the server, with no JavaScript needed and no fonts or assets fetched from the internet. The fonts are the system's own: Charter or Iowan Old Style for reading on a Mac, falling back to Georgia. Bodies are written by agents, so raw HTML in them is shown as text and links with script schemes are disabled. Smart punctuation is off on purpose: it would turn `--flag` into an en dash.
+
 ## Running
 
 ```bash
@@ -33,7 +44,7 @@ cargo build --release
 | `--allowed-host` (repeatable, or comma-separated) | `ALLOWED_HOSTS` | loopback only |
 | `--allow-any-host` | `ALLOW_ANY_HOST` | off |
 
-The MCP endpoint is `/mcp` and `/healthz` returns `ok`. Set `RUST_LOG=debug` for more logging.
+The MCP endpoint is `/mcp`, the [web browser](#web-browser) is at `/`, and `/healthz` returns `ok`. Set `RUST_LOG=debug` for more logging.
 
 **Host check:** rmcp rejects requests whose `Host` header isn't on the allow-list. This protects against DNS rebinding. Loopback names are always allowed. Add every name clients use to reach the server: the Tailscale MagicDNS name, the short host name and the tailnet IP.
 
@@ -43,7 +54,15 @@ The MCP endpoint is `/mcp` and `/healthz` returns `ok`. Set `RUST_LOG=debug` for
 cargo test
 ```
 
-Unit tests always run. The end-to-end tests in `tests/mcp_integration.rs` start the real HTTP server and call every tool with rmcp's MCP client. They run only when `MONGODB_TEST_URI` is set. Each test creates and then drops its own `agent_memory_test_<id>` database:
+Unit tests always run.
+
+To look at the web browser with real content, copy the live store into the test MongoDB and start the `web-preview` configuration in `.claude/launch.json`, which serves the copy at `http://localhost:8788/`:
+
+```bash
+ssh fuzzball.local 'mongodump --quiet --archive --db agent_memory' | docker exec -i amm-test-mongo mongorestore --quiet --drop --archive --nsFrom 'agent_memory.*' --nsTo 'amm_preview.*'
+```
+
+ The end-to-end tests in `tests/mcp_integration.rs` start the real HTTP server and call every tool with rmcp's MCP client. They run only when `MONGODB_TEST_URI` is set. Each test creates and then drops its own `agent_memory_test_<id>` database:
 
 ```bash
 docker run -d --name amm-test-mongo -p 127.0.0.1:27018:27017 mongo:7

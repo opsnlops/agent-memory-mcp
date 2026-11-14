@@ -527,3 +527,125 @@ async fn get_returns_headings_and_single_sections() {
 
     h.finish().await;
 }
+
+// ---------- web browser ----------
+
+impl Harness {
+    async fn page(&self, path: &str) -> (u16, String) {
+        self.page_with_host(path, "localhost").await
+    }
+
+    async fn page_with_host(&self, path: &str, host: &str) -> (u16, String) {
+        let resp = reqwest::Client::new()
+            .get(format!("http://{}{path}", self.addr))
+            .header("Host", host)
+            .send()
+            .await
+            .unwrap();
+        (resp.status().as_u16(), resp.text().await.unwrap())
+    }
+}
+
+#[tokio::test]
+async fn web_browses_projects_entries_and_search() {
+    let Some(h) = Harness::start().await else {
+        return;
+    };
+    let state = h
+        .remember(json!({
+            "title": "Project state: demo",
+            "body": "## Purpose\nA demo.\n\n## Related entries\n- see the technique",
+            "tags": ["project-state"],
+            "project": "demo"
+        }))
+        .await;
+    let technique = h
+        .remember(json!({
+            "title": "Flash the board",
+            "body": "## Steps\n1. Hold **BOOT**\n2. Run `make flash`\n\nDetails in `000000000000000000000000`.",
+            "kind": "technique",
+            "tags": ["firmware"],
+            "project": "demo"
+        }))
+        .await;
+    h.remember(json!({ "title": "Global tip", "body": "Applies everywhere." }))
+        .await;
+
+    let (status, index) = h.page("/").await;
+    assert_eq!(status, 200);
+    assert!(index.contains(r#"href="/p/demo""#), "{index}");
+    assert!(index.contains(r#"href="/general""#));
+    assert!(index.contains("3 entries across 1 project."));
+
+    let (status, project) = h.page("/p/demo").await;
+    assert_eq!(status, 200);
+    assert!(project.contains("Start here"));
+    assert!(project.contains(&format!(r#"href="/m/{state}""#)));
+    assert!(project.contains(&format!(r#"href="/m/{technique}""#)));
+    assert!(!project.contains("Global tip"));
+
+    let (_, general) = h.page("/general").await;
+    assert!(general.contains("Global tip") && !general.contains("Flash the board"));
+
+    let (status, entry) = h.page(&format!("/m/{technique}")).await;
+    assert_eq!(status, 200);
+    assert!(entry.contains("<h1>Flash the board</h1>"));
+    assert!(entry.contains(r#"<h2 id="steps">Steps</h2>"#));
+    assert!(entry.contains("<strong>BOOT</strong>"));
+    assert!(
+        entry.contains(r#"href="/m/000000000000000000000000""#),
+        "entry ids link"
+    );
+
+    let (status, results) = h.page("/search?q=flash").await;
+    assert_eq!(status, 200);
+    assert!(results.contains("1 result for"));
+
+    assert_eq!(h.page("/p/nothing-here").await.0, 404);
+    assert_eq!(h.page("/m/not-an-id").await.0, 404);
+    assert_eq!(h.page(&format!("/m/{}", ObjectId::new())).await.0, 404);
+    assert_eq!(h.page("/static/style.css").await.0, 200);
+    h.finish().await;
+}
+
+#[tokio::test]
+async fn web_escapes_agent_written_html() {
+    let Some(h) = Harness::start().await else {
+        return;
+    };
+    let id = h
+        .remember(json!({
+            "title": "<img src=x onerror=alert(1)>",
+            "body": "<script>alert(1)</script>\n\n[click](javascript:alert(1))",
+            "project": "<b>p</b>"
+        }))
+        .await;
+    let (_, page) = h.page(&format!("/m/{id}")).await;
+    assert!(!page.contains("<script>alert"), "{page}");
+    assert!(!page.contains("<img src=x"), "{page}");
+    assert!(!page.contains("javascript:"), "{page}");
+    assert!(page.contains("&lt;script&gt;"));
+    let (_, index) = h.page("/").await;
+    assert!(!index.contains("<b>p</b>") && index.contains("/p/%3Cb%3Ep%3C%2Fb%3E"));
+    h.finish().await;
+}
+
+#[tokio::test]
+async fn web_uses_the_host_allow_list() {
+    let Some(h) = Harness::start_with(HttpOptions {
+        allowed_hosts: vec!["memory.example.ts.net".into()],
+        allow_any_host: false,
+    })
+    .await
+    else {
+        return;
+    };
+    assert_eq!(h.page_with_host("/", "evil.example").await.0, 403);
+    assert_eq!(h.page_with_host("/", "evil.example:8787").await.0, 403);
+    assert_eq!(
+        h.page_with_host("/", "memory.example.ts.net:8787").await.0,
+        200
+    );
+    assert_eq!(h.page_with_host("/", "localhost").await.0, 200);
+    h.finish().await;
+}

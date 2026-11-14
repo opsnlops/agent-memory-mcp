@@ -1,8 +1,10 @@
 //! Shared long-term memory for coding agents, served over MCP.
 
 pub mod edit;
+pub mod markdown;
 pub mod server;
 pub mod store;
+pub mod web;
 
 use std::{net::SocketAddr, sync::Arc};
 
@@ -26,7 +28,7 @@ pub struct HttpOptions {
     pub allow_any_host: bool,
 }
 
-/// Build the axum app (`/mcp` and `/healthz`). Cancel the returned token to
+/// Build the axum app: `/mcp`, `/healthz` and the read-only web browser. Cancel the returned token to
 /// close open MCP sessions during shutdown.
 pub fn app(store: Store, opts: &HttpOptions) -> (Router, CancellationToken) {
     let mut config = StreamableHttpServerConfig::default();
@@ -36,13 +38,14 @@ pub fn app(store: Store, opts: &HttpOptions) -> (Router, CancellationToken) {
     };
     let shutdown = config.cancellation_token.clone();
 
+    let store_for_web = store.clone();
     let mcp = StreamableHttpService::new(
         move || Ok(MemoryServer::new(store.clone())),
         Arc::new(LocalSessionManager::default()),
         config,
     );
 
-    let router = Router::new()
+    let router = web::router(store_for_web, opts.effective_allowed_hosts())
         .route("/healthz", get(|| async { "ok" }))
         .nest_service("/mcp", mcp);
     (router, shutdown)

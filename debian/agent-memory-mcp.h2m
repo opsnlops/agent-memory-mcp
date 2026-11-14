@@ -11,6 +11,12 @@ MCP over Streamable HTTP at
 .I /mcp
 and stores entries in MongoDB.
 .PP
+The same port serves a read-only web browser for people at
+.IR / :
+projects, each project's entries, and each entry rendered from Markdown,
+plus search. It needs no configuration and follows the same Host rules as
+.IR /mcp .
+.PP
 There is no authentication. Restrict access at the network level, for
 example with a firewall or Tailscale.
 .PP
@@ -112,6 +118,14 @@ Run by hand against a remote MongoDB, listening only on loopback:
 .RS
 .nf
 agent-memory-mcp --mongodb-uri mongodb://db.example:27017 --bind 127.0.0.1:8787
+.fi
+.RE
+.PP
+Browse the memories from another machine on the tailnet:
+.PP
+.RS
+.nf
+http://fuzzball.example-tailnet.ts.net:8787/
 .fi
 .RE
 .PP

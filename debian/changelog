@@ -1,3 +1,12 @@
+agent-memory-mcp (0.4.0) trixie; urgency=medium
+
+  * Read-only web browser for people at /: projects, entries per
+    project, each entry rendered from Markdown for reading, and search.
+    Same Host allow-list as /mcp; no JavaScript required and no network
+    fetches.
+
+ -- April White <claude@sneakyrabbits.io>  Sat, 14 Nov 2026 07:21:08 +0000
+
 agent-memory-mcp (0.3.0) trixie; urgency=medium
 
   * New edit tool: change part of an entry with exact-text replacements
